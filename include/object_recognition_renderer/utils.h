@@ -105,7 +105,7 @@ public:
    */
   size_t
   n_templates() const;
-private:
+//private:
   /**
    * @param T the translation vector
    * @param up the up vector of the view point

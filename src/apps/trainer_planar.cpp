@@ -97,14 +97,15 @@ int main(int argc, char **argv) {
 
           detector_ptr->addTemplate(sources, "object1", mask);
 
-//          cv::imshow("img", img);
+          cv::imshow("img", img);
 //          cv::imshow("depth", depth);
-//          cv::imshow("mask", mask);
-//          cv::waitKey(0);
+          cv::imshow("mask", mask);
+          cv::waitKey(0);
         }
       }
 
   detector_ptr->writeClasses(file_name + std::string("_templates.yaml"));
+
 
   cv::VideoCapture cap(0);
   cv::Mat img;

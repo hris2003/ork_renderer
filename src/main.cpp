@@ -53,58 +53,144 @@
 
 void render3d(std::string file_name, size_t width, size_t height) {
 #if USE_RENDERER_GLUT
-  RendererGlut renderer = RendererGlut(file_name);
+	RendererGlut renderer = RendererGlut(file_name);
 #else
-  RendererOSMesa renderer = RendererOSMesa(file_name);
+	RendererOSMesa renderer = RendererOSMesa(file_name);
 #endif
 
-  double near = 0.1, far = 1000;
-  double focal_length_x = 525, focal_length_y = 525;
+	double near = 0.1, far = 1000;
+	double focal_length_x = 525, focal_length_y = 525;
 
-  renderer.set_parameters(width, height, focal_length_x, focal_length_y, near, far);
+	renderer.set_parameters(width, height, focal_length_x, focal_length_y, near,
+			far);
 
-  RendererIterator renderer_iterator = RendererIterator(&renderer, 150);
+	RendererIterator renderer_iterator = RendererIterator(&renderer, 150);
 
-  cv::Mat image, depth, mask;
-  for (size_t i = 0; !renderer_iterator.isDone(); ++i, ++renderer_iterator) {
-    try {
-      renderer_iterator.render(image, depth, mask);
-      cv::imwrite(boost::str(boost::format("depth_%05d.png") % (i)), depth);
-      cv::imwrite(boost::str(boost::format("image_%05d.png") % (i)), image);
-      cv::imwrite(boost::str(boost::format("mask_%05d.png") % (i)), mask);
-    } catch (...) {
+	cv::Mat image, depth, mask;
+	for (size_t i = 0; !renderer_iterator.isDone(); ++i, ++renderer_iterator) {
+		try {
+			renderer_iterator.render(image, depth, mask);
+			cv::imwrite(boost::str(boost::format("depth_%05d.png") % (i)),
+					depth);
+			cv::imwrite(boost::str(boost::format("image_%05d.png") % (i)),
+					image);
+			cv::imwrite(boost::str(boost::format("mask_%05d.png") % (i)), mask);
+		} catch (...) {
 
-    }
-  }
+		}
+	}
+}
+
+void render3d_withFixeParams(std::string file_name, size_t width, size_t height,
+		double r_in, int angle_in, int step_in, bool isLoop) {
+#if USE_RENDERER_GLUT
+	RendererGlut renderer = RendererGlut(file_name);
+#else
+	RendererOSMesa renderer = RendererOSMesa(file_name);
+#endif
+
+	double near = 0.1, far = 1000;
+	double focal_length_x = 525, focal_length_y = 525;
+
+	renderer.set_parameters(width, height, focal_length_x, focal_length_y, near,
+			far);
+
+	int max_index = 1500;
+	RendererIterator renderer_iterator = RendererIterator(&renderer, 100);
+
+	cv::Mat image, depth, mask;
+	cv::Matx33d R;
+	cv::Vec3d T;
+	//Setup the view_params for RendererIterator, including angle_, radius_, index_
+
+	renderer_iterator.angle_ = angle_in;
+	renderer_iterator.radius_ = r_in;
+	renderer_iterator.index_ = step_in;
+	if (isLoop) {
+		for (int my_angle = -90; my_angle < 90; my_angle += 30)
+			for (int my_index = 0; my_index < 100; my_index++) {
+				//
+				//for (double my_r = 0.4; my_r < 1.0; my_r+=0.05) {
+				try {
+					renderer_iterator.index_ = my_index;
+					renderer_iterator.angle_ = my_angle;
+					//renderer_iterator.radius_ = my_r;
+					renderer_iterator.render(image, depth, mask);
+
+					// Display the rendered image
+					cv::namedWindow("Rendering");
+					if (!image.empty()) {
+						cv::imshow("Rendering", image);
+						//std::cout << "R:\n" << R << "\nT:\n" << T << std::endl;
+						if (cv::waitKey(50)==27) break;
+					}
+
+				} catch (...) {
+					std::cout << "Something wrong in the input params ;-)\n";
+				}
+			}
+	} else {
+		try {
+			//renderer_iterator.angle_ = my_angle;
+			//renderer_iterator.radius_ = my_r;
+			renderer_iterator.render(image, depth, mask);
+
+			R = renderer_iterator.R();
+			T = renderer_iterator.T();
+			std::cout << "Rendering params:\nRadius:\t"
+					<< renderer_iterator.radius_ << "\nAngle:\t"
+					<< renderer_iterator.angle_ << "\nIndex:\t"
+					<< renderer_iterator.index_ << std::endl;
+
+			// Display the rendered image
+			cv::namedWindow("Rendering");
+			if (!image.empty()) {
+				cv::imshow("Rendering", image);
+				std::cout << "R:\n" << R << "\nT:\n" << T << std::endl;
+				cv::waitKey(0);
+			}
+
+		} catch (...) {
+			std::cout << "Something wrong in the input params ;-)\n";
+		}
+	}
+
 }
 
 void render2d(std::string file_name, size_t width, size_t height) {
-  Renderer2d render(file_name, 0.2);
-  double focal_length_x = 525, focal_length_y = 525;
-  render.set_parameters(width, height, focal_length_x, focal_length_y);
-  float y = 0., z = 1;
-  cv::Vec2f up(z, -y);
-  up = up / norm(up);
-  render.lookAt(0.5, y, z, 0, up(0), up(1));
-  cv::Mat img, depth, mask;
-  render.render(img, depth, mask);
-  cv::imshow("img", img);
-  cv::imshow("depth", depth);
-  cv::imshow("mask", mask);
-  cv::waitKey(0);
+	Renderer2d render(file_name, 0.2);
+	double focal_length_x = 525, focal_length_y = 525;
+	render.set_parameters(width, height, focal_length_x, focal_length_y);
+	float y = 0., z = 1;
+	cv::Vec2f up(z, -y);
+	up = up / norm(up);
+	render.lookAt(0.5, y, z, 0, up(0), up(1));
+	cv::Mat img, depth, mask;
+	render.render(img, depth, mask);
+	cv::imshow("img", img);
+	cv::imshow("depth", depth);
+	cv::imshow("mask", mask);
+	cv::waitKey(0);
 }
 
 int main(int argc, char **argv) {
-  // Define the display
-  size_t width = 640, height = 480;
+	// Define the display
+	size_t width = 640, height = 480;
 
-  // the model name can be specified on the command line.
-  std::string file_name(argv[1]), file_ext = file_name.substr(file_name.size() - 3, file_name.npos);
+	// the model name can be specified on the command line.
+	//std::string file_name(argv[1]), file_ext = file_name.substr(file_name.size() - 3, file_name.npos);
+	//filename of the coke mesh: /home/hdang/ork/src/ork_tutorials/data/coke.stl
+	std::string file_name("/home/hdang/ork/src/ork_tutorials/data/coke.stl"),
+			file_ext = "stl";
+	double r = atof(argv[1]);  //input radius
+	int angle = atoi(argv[2]);  //input angle
+	int index = atoi(argv[3]);  //input index
+	bool isLoop = atoi(argv[4]) > 0;  //input index
+	if (file_ext == "png")
+		render2d(file_name, width, height);
+	else
+		render3d_withFixeParams(file_name, width, height, r, angle, index,
+				isLoop);
 
-  if (file_ext == "png")
-    render2d(file_name, width, height);
-  else
-    render3d(file_name, width, height);
-
-  return 0;
+	return 0;
 }

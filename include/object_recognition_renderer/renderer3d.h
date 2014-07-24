@@ -68,7 +68,7 @@ public:
   set_parameters(size_t width, size_t height, double focal_length_x, double focal_length_y, double near, double far);
 
   /** Similar to the gluLookAt function
-   * @param x the x position of the eye pointt
+   * @param x the x position of the eye point
    * @param y the y position of the eye point
    * @param z the z position of the eye point
    * @param upx the x direction of the up vector
