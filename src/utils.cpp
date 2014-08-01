@@ -37,11 +37,13 @@
 #include <object_recognition_renderer/renderer.h>
 #include <object_recognition_renderer/utils.h>
 
+#include <iostream>//todo to be deleted after debug
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 RendererIterator::RendererIterator(Renderer *renderer, size_t n_points) :
-		n_points_(n_points), index_(0), renderer_(renderer), angle_min_(-90), angle_max_(
-				90), angle_step_(30), angle_(angle_min_), radius_min_(0.4), radius_max_(
+		n_points_(n_points), index_(0), renderer_(renderer), angle_min_(-80), angle_max_(
+				80), angle_step_(10), angle_(angle_min_), radius_min_(0.4), radius_max_(
 				0.8), radius_step_(0.2), radius_(radius_min_) {
 }
 
@@ -79,9 +81,15 @@ cv::Matx33d RendererIterator::R() const {
 	cv::Vec3d t, up;
 	view_params(t, up);
 
-	cv::Vec3d y = t.cross(up);
-	cv::Mat R_full = (cv::Mat_<double>(3, 3) << t(0), t(1), t(2), y(0), y(1), y(
-			2), up(0), up(1), up(2));
+	cv::Vec3d t_normal = cv::Vec3f(t(0), t(1), t(2));
+	normalize_vector(t_normal(0),t_normal(1),t_normal(2));
+
+	cv::Vec3d right = t_normal.cross(up);
+
+	normalize_vector(right(0),right(1),right(2));
+	normalize_vector(up(0),up(1),up(2));
+
+	cv::Mat R_full = (cv::Mat_<double>(3, 3) << t_normal(0), t_normal(1), t_normal(2), up(0), up(1), up(2),right(0), right(1), right(2));
 	cv::Matx33d R = R_full;
 
 	return R;
@@ -116,27 +124,25 @@ void RendererIterator::view_params(cv::Vec3d &T, cv::Vec3d &up) const {
 	float z = index_ * off - 1 + (off / 2);
 	float r = sqrt(1 - z * z);
 	float phi = index_ * inc;
-	float y = cos(phi) * r;
-	float x = sin(phi) * r;
+	float x = cos(phi) * r;
+	float y = sin(phi) * r;
 
-	float lat = acos(z), lon;
-	if ((fabs(sin(lat)) < 1e-5) || (fabs(y / sin(lat)) > 1))
-		lon = 0;
-	else
-		lon = asin(y / sin(lat));
 	x *= radius_; // * cos(lon) * sin(lat);
 	y *= radius_; //float y = radius * sin(lon) * sin(lat);
 	z *= radius_; //float z = radius * cos(lat);
+	T = cv::Vec3d(x, y, z);
 
+	cv::Vec3d T_ = cv::Vec3d(x, y, z);
+	normalize_vector(T_(0),T_(1),T_(2));
 	// Figure out the up vector
 	//try getting up_vec from forward vector and the global up_vector(0,0,1) (i.e. coincide with the Z axis)
-	cv::Vec3f right = cv::Vec3f(x, y, z).cross(cv::Vec3f(0, 0, 1));
-	cv::Vec3f T_up = right.cross(cv::Vec3f(x, y, z));
-	normalize_vector(T_up(0), T_up(1), T_up(2));
+	cv::Vec3d right = T_.cross(cv::Vec3d(0, 0, 1));
 	normalize_vector(right(0), right(1), right(2));
+	cv::Vec3d T_up = right.cross(T_);
+	normalize_vector(T_up(0), T_up(1), T_up(2));
 
 	// Rotate the up vector in that basis
 	float angle_rad = angle_ * CV_PI / 180.;
 	up = T_up * cos(angle_rad) + right * sin(angle_rad);
-	T = cv::Vec3d(x, y, z);
+
 }

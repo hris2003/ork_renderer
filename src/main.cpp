@@ -96,39 +96,60 @@ void render3d_withFixeParams(std::string file_name, size_t width, size_t height,
 			far);
 
 	int max_index = 1500;
-	RendererIterator renderer_iterator = RendererIterator(&renderer, 100);
+	RendererIterator renderer_iterator = RendererIterator(&renderer, 50);
 
 	cv::Mat image, depth, mask;
-	cv::Matx33d R;
-	cv::Vec3d T;
+	cv::Matx33d R, R_in, r;
+	cv::Vec3d T, T_in;
+	//Matx to switch between Y and Z
+	cv::Mat R_yz = (cv::Mat_<double>(3, 3) << 1, 0, 0, 0, 0, -1, 0, 1, 0);
 	//Setup the view_params for RendererIterator, including angle_, radius_, index_
 
 	renderer_iterator.angle_ = angle_in;
 	renderer_iterator.radius_ = r_in;
 	renderer_iterator.index_ = step_in;
+	/*
+	renderer_iterator.render(image, depth, mask);
+	R_in = renderer_iterator.R();
+	T_in = renderer_iterator.T();
+	std::cout << "Rendering params:\nRadius:\t" << renderer_iterator.radius_
+			<< "\nAngle:\t" << renderer_iterator.angle_ << "\nIndex:\t"
+			<< renderer_iterator.index_ << std::endl;
+	*/
+	// Display the rendered image
+	//cv::namedWindow("Rendering");
+	//R_in = R_in.t() * cv::Matx33d(R_yz);
 	if (isLoop) {
-		for (int my_angle = -90; my_angle < 90; my_angle += 30)
-			for (int my_index = 0; my_index < 100; my_index++) {
+		//for (int my_angle = -90; my_angle < 90; my_angle += 10)
+			for (int my_index = 0; my_index < 50; my_index++) {
 				//
 				//for (double my_r = 0.4; my_r < 1.0; my_r+=0.05) {
 				try {
 					renderer_iterator.index_ = my_index;
-					renderer_iterator.angle_ = my_angle;
+					//renderer_iterator.angle_ = my_angle;
 					//renderer_iterator.radius_ = my_r;
 					renderer_iterator.render(image, depth, mask);
+					R = renderer_iterator.R();
+					T = renderer_iterator.T();
+					//R = R.t() * cv::Matx33d(R_yz);
+					//compare the R with R_in and show it if possible
+				// Display the rendered image
+					//cv::namedWindow("Rendering");
+					//std::cout<<"i: "<<i<<std::endl;
 
-					// Display the rendered image
-					cv::namedWindow("Rendering");
 					if (!image.empty()) {
 						cv::imshow("Rendering", image);
-						//std::cout << "R:\n" << R << "\nT:\n" << T << std::endl;
-						if (cv::waitKey(50)==27) break;
+						//std::cout << "Rin:\n" << R_in << "\nT_in:\n" << T_in << std::endl;
+						std::cout << "R:\n" << R << "\nT:\n" << T << std::endl;
+						cv::waitKey(500);
 					}
 
 				} catch (...) {
 					std::cout << "Something wrong in the input params ;-)\n";
 				}
 			}
+		std::cout<<"Press any key to stop"<<std::endl;
+		cv::waitKey(0);
 	} else {
 		try {
 			//renderer_iterator.angle_ = my_angle;
@@ -144,6 +165,7 @@ void render3d_withFixeParams(std::string file_name, size_t width, size_t height,
 
 			// Display the rendered image
 			cv::namedWindow("Rendering");
+			//R = R.t() * cv::Matx33d(R_yz);
 			if (!image.empty()) {
 				cv::imshow("Rendering", image);
 				std::cout << "R:\n" << R << "\nT:\n" << T << std::endl;
