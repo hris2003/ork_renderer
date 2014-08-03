@@ -85,6 +85,7 @@ endif()
 # add an executable to render views to a file
 ADD_EXECUTABLE(view_generator main.cpp)
 
+
 SET_PROPERTY(TARGET view_generator PROPERTY DEBUG_POSTFIX ${ASSIMP_DEBUG_POSTFIX})
 
 TARGET_LINK_LIBRARIES(view_generator ${EXTRA_LIBRARIES})

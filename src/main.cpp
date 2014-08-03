@@ -39,6 +39,9 @@
 #include <iostream>
 #include <stdlib.h>
 
+#include <ros/ros.h>
+#include <visualization_msgs/Marker.h>
+
 #include <boost/format.hpp>
 
 #include <opencv2/highgui/highgui.hpp>
@@ -50,6 +53,7 @@
 #endif
 #include <object_recognition_renderer/utils.h>
 #include <object_recognition_renderer/renderer2d.h>
+
 
 void render3d(std::string file_name, size_t width, size_t height) {
 #if USE_RENDERER_GLUT
@@ -79,6 +83,76 @@ void render3d(std::string file_name, size_t width, size_t height) {
 
 		}
 	}
+}
+void render3d_2Ros(std::string file_name, size_t width, size_t height,
+        double r_in, int angle_in, int step_in, bool isLoop) {
+
+    ros::init(argc, argv, "basic_shapes");
+    ros::NodeHandle n;
+    ros::Rate r(1);
+    ros::Publisher marker_pub = n.advertise<visualization_msgs::Marker>("visualization_marker", 1);
+    uint32_t shape = visualization_msgs::Marker::ARROW;
+
+#if USE_RENDERER_GLUT
+    RendererGlut renderer = RendererGlut(file_name);
+#else
+    RendererOSMesa renderer = RendererOSMesa(file_name);
+#endif
+
+    double near = 0.1, far = 1000;
+    double focal_length_x = 525, focal_length_y = 525;
+
+    renderer.set_parameters(width, height, focal_length_x, focal_length_y, near,
+            far);
+
+    RendererIterator renderer_iterator = RendererIterator(&renderer, 150);
+
+    cv::Mat image, depth, mask;
+    cv::Matx33d R;
+    cv::Vec3d T;
+
+    while (ros::ok())
+      {
+        renderer_iterator.render(image, depth, mask);
+        R = renderer_iterator.R();
+        T = renderer_iterator.T();
+
+        visualization_msgs::Marker marker;
+        // Set the frame ID and timestamp.  See the TF tutorials for information on these.
+        marker.header.frame_id = "/my_frame";
+        marker.header.stamp = ros::Time::now();
+
+        marker.ns = "basic_shapes";
+        marker.id = 0;
+        marker.type = shape;
+        marker.action = visualization_msgs::Marker::ADD;
+
+        marker.pose.position.x = T(0);
+        marker.pose.position.y = T(1);
+        marker.pose.position.z = T(2);
+        marker.pose.orientation.x = R(3,0);
+        marker.pose.orientation.y = R(3,1);
+        marker.pose.orientation.z = R(3,2);
+        marker.pose.orientation.w = 1.0;
+
+        marker.scale.x = 0.1;
+        marker.scale.y = 0.1;
+        marker.scale.z = 0.1;
+
+        marker.color.r = 1.0f;
+        marker.color.g = 1.0f;
+        marker.color.b = 0.0f;
+        marker.color.a = 1.0;
+
+        marker.lifetime = ros::Duration();
+
+        marker_pub.publish(marker);
+
+        r.sleep();
+
+        ++renderer_iterator;
+
+     }//end of while
 }
 
 void render3d_withFixeParams(std::string file_name, size_t width, size_t height,
