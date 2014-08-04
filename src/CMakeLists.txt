@@ -2,6 +2,8 @@ FIND_PACKAGE(OpenGL)
 
 find_package(PkgConfig REQUIRED)
 find_package(ASSIMP QUIET)
+find_package(catkin REQUIRED COMPONENTS roscpp visualization_msgs)
+
 if (NOT ASSIMP_FOUND)
   pkg_check_modules(ASSIMP assimp)
 endif()
@@ -88,7 +90,7 @@ ADD_EXECUTABLE(view_generator main.cpp)
 
 SET_PROPERTY(TARGET view_generator PROPERTY DEBUG_POSTFIX ${ASSIMP_DEBUG_POSTFIX})
 
-TARGET_LINK_LIBRARIES(view_generator ${EXTRA_LIBRARIES})
+TARGET_LINK_LIBRARIES(view_generator ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${EXTRA_LIBRARIES})
 
 if (${USE_GLUT})
   target_link_libraries(view_generator ${PROJECT_NAME}_glut)

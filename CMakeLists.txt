@@ -3,12 +3,12 @@ project(object_recognition_renderer)
 
 find_package(Boost REQUIRED)
 find_package(OpenCV REQUIRED)
-find_package(
-  roscpp
-  visualization_msgs
-)
 
-find_package(catkin REQUIRED)
+find_package(catkin REQUIRED COMPONENTS roscpp visualization_msgs cmake_modules)
+
+find_package(Eigen REQUIRED)
+
+#add_definitions(${EIGEN_DEFINITIONS})
 
 option(USE_GLUT "Use GLUT instead of OSMesa" ON)
 
@@ -31,7 +31,9 @@ include_directories(include)
 include_directories(SYSTEM ${Boost_INCLUDE_DIRS}
                            ${catkin_INCLUDE_DIRS}
                            ${OpenCV_INCLUDE_DIRS}
+                           ${Eigen_INCLUDE_DIRS}
 )
+
 
 add_subdirectory(src)
 

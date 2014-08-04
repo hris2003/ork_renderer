@@ -43,12 +43,13 @@
 
 RendererIterator::RendererIterator(Renderer *renderer, size_t n_points) :
 		n_points_(n_points), index_(0), renderer_(renderer), angle_min_(-80), angle_max_(
-				80), angle_step_(10), angle_(angle_min_), radius_min_(0.4), radius_max_(
+				80), angle_step_(40), angle_(angle_min_), radius_min_(0.4), radius_max_(
 				0.8), radius_step_(0.2), radius_(radius_min_) {
 }
 
 RendererIterator &
 RendererIterator::operator++() {
+
 	angle_ += angle_step_;
 	if (angle_ > angle_max_) {
 		angle_ = angle_min_;
@@ -57,6 +58,8 @@ RendererIterator::operator++() {
 			radius_ = radius_min_;
 			++index_;
 		}
+		if (index_ == n_points_)
+			index_ = 0;
 	}
 
 	return *this;
@@ -89,7 +92,7 @@ cv::Matx33d RendererIterator::R() const {
 	normalize_vector(right(0),right(1),right(2));
 	normalize_vector(up(0),up(1),up(2));
 
-	cv::Mat R_full = (cv::Mat_<double>(3, 3) << t_normal(0), t_normal(1), t_normal(2), up(0), up(1), up(2),right(0), right(1), right(2));
+	cv::Mat R_full = (cv::Mat_<double>(3, 3) << t_normal(0), t_normal(1), t_normal(2),right(0), right(1), right(2), up(0), up(1), up(2));
 	cv::Matx33d R = R_full;
 
 	return R;
@@ -121,11 +124,11 @@ void RendererIterator::view_params(cv::Vec3d &T, cv::Vec3d &up) const {
 	// Calculate Point(x, y ,z) on the sphere based on index_ and radius_ using Golden Spiral technique
 	static float inc = CV_PI * (3 - sqrt(5));
 	static float off = 2.0 / float(n_points_);
-	float z = index_ * off - 1 + (off / 2);
-	float r = sqrt(1 - z * z);
+	float y = index_ * off - 1 + (off / 2);
+	float r = sqrt(1 - y * y);
 	float phi = index_ * inc;
 	float x = cos(phi) * r;
-	float y = sin(phi) * r;
+	float z = sin(phi) * r;
 
 	x *= radius_; // * cos(lon) * sin(lat);
 	y *= radius_; //float y = radius * sin(lon) * sin(lat);
