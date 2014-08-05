@@ -37,11 +37,15 @@
 #define GL_GLEXT_PROTOTYPES
 
 #include <iostream>
+#include <string>
+#include <sstream>
 #include <stdlib.h>
 
 #include <ros/ros.h>
 #include <visualization_msgs/Marker.h>
 #include <visualization_msgs/MarkerArray.h>
+#include "geometry_msgs/PoseStamped.h"
+#include "geometry_msgs/PoseArray.h"
 #include <Eigen/Core>
 #include <Eigen/Dense>
 
@@ -59,6 +63,7 @@
 #include <object_recognition_renderer/utils.h>
 #include <object_recognition_renderer/renderer2d.h>
 
+using namespace std;
 
 void render3d(std::string file_name, size_t width, size_t height) {
 #if USE_RENDERER_GLUT
@@ -96,6 +101,11 @@ void render3d_2Ros(std::string file_name, size_t width, size_t height,
     ros::NodeHandle n;
     ros::Rate r(2);
     ros::Publisher marker_pub = n.advertise<visualization_msgs::MarkerArray>("visualization_marker_array", 1);
+    ros::Publisher sphere_pub = n.advertise<visualization_msgs::Marker>("sphere_marker", 10);
+    ros::Publisher cam_pose_pub = n.advertise<geometry_msgs::PoseStamped>("cam_pose_marker", 1);
+    ros::Publisher obj_pose_pub = n.advertise<geometry_msgs::PoseStamped>("obj_pose_marker", 1);
+    ros::Publisher origin_pose_pub = n.advertise<geometry_msgs::PoseStamped>("origin_pose_marker", 1);
+
     uint32_t shape = visualization_msgs::Marker::ARROW;
 
 #if USE_RENDERER_GLUT
@@ -118,6 +128,7 @@ void render3d_2Ros(std::string file_name, size_t width, size_t height,
 
     //Marker for the object in the center of the world
     visualization_msgs::Marker obj_marker, check_marker;
+    int id = 0;
 
 
     // Set the frame ID and timestamp.  See the TF tutorials for information on these.
@@ -126,7 +137,8 @@ void render3d_2Ros(std::string file_name, size_t width, size_t height,
     obj_marker.header.stamp = ros::Time::now();
 
     obj_marker.ns = "basic_shapes";
-    obj_marker.id = 2;
+    obj_marker.id = id;
+    id++;
     obj_marker.type = shape;
     obj_marker.action = visualization_msgs::Marker::ADD;
 
@@ -135,9 +147,9 @@ void render3d_2Ros(std::string file_name, size_t width, size_t height,
     obj_marker.pose.orientation.z = 1;
     obj_marker.pose.orientation.w = 1.0;
 
-    obj_marker.scale.x = 0.1;
-    obj_marker.scale.y = 0.05;
-    obj_marker.scale.z = 0.05;
+    obj_marker.scale.x = 0.02;
+    obj_marker.scale.y = 0.02;
+    obj_marker.scale.z = 0.02;
 
     obj_marker.color.r = 1.0f;
     obj_marker.color.g = 0.0f;
@@ -147,14 +159,43 @@ void render3d_2Ros(std::string file_name, size_t width, size_t height,
     obj_marker.lifetime = ros::Duration();
 
     check_marker = obj_marker;
-    check_marker.id = 3;
+    check_marker.id = id;
+    id++;
     check_marker.color.r = 0.0f;
     check_marker.color.g = 1.0f;
     check_marker.color.b = 0.0f;
     check_marker.color.a = 1.0f;
 
+    renderer_iterator.angle_ = angle_in;
+    renderer_iterator.radius_ = r_in;
+    vector<cv::Vec3f> Ts;
+    for (int my_index = 0; my_index < 50; my_index++) {
+    	renderer_iterator.index_ = my_index;
+    	cv::Vec3f t =renderer_iterator.T();
+    	Ts.push_back(t);
+    }
+
+
+    string mystr;
     while (ros::ok())
       {
+
+    	cout << "Enter radius (default is "<<r_in<<"): ";
+    	getline (cin,mystr);
+    	if (mystr.length() > 0)
+    		stringstream(mystr) >> r_in;
+    	cout << "Enter angle (default is "<<angle_in<<"): ";
+    	getline (cin,mystr);
+    	if (mystr.length() > 0)
+    		stringstream(mystr) >> angle_in;
+    	cout << "Enter index_ (default is "<<step_in<<"): ";
+    	getline (cin,mystr);
+    	if (mystr.length() > 0)
+    		stringstream(mystr) >> step_in;
+
+    	renderer_iterator.angle_ = angle_in;
+    	renderer_iterator.radius_ = r_in;
+    	renderer_iterator.index_ = step_in;
 
         renderer_iterator.render(image, depth, mask);
         cv::Mat R_in = cv::Mat(renderer_iterator.R());
@@ -164,10 +205,10 @@ void render3d_2Ros(std::string file_name, size_t width, size_t height,
         //std::cout << "R:\n" << R << "\nT:\n\n" << T << std::endl;
         R_obj = cv::Mat(R).clone();
         R_cam = cv::Mat(R).clone();
-        R_obj = R_obj.t();
+        R_cam = R_cam.t();
 
         visualization_msgs::MarkerArray marker_array;
-        marker_array.markers.resize(3);
+        marker_array.markers.resize(4);
         visualization_msgs::Marker marker;
         // Set the frame ID and timestamp.  See the TF tutorials for information on these.
         marker.header.frame_id = "/camera_rgb_optical_frame";
@@ -176,13 +217,13 @@ void render3d_2Ros(std::string file_name, size_t width, size_t height,
         obj_marker.header.stamp = ros::Time::now();
         marker.ns = "basic_shapes";
 
-        marker.id = 1;
+        marker.id = id;
         marker.type = shape;
         marker.action = visualization_msgs::Marker::ADD;
 
-        marker.pose.position.x = -T(0);
-        marker.pose.position.y = -T(1);
-        marker.pose.position.z = -T(2);
+        marker.pose.position.x = T(0);
+        marker.pose.position.y = T(1);
+        marker.pose.position.z = T(2);
 
         check_marker.pose.position.x = 0;
         check_marker.pose.position.y = 0;
@@ -212,31 +253,118 @@ void render3d_2Ros(std::string file_name, size_t width, size_t height,
         Eigen::Matrix3f check_rotation;
         check_rotation << R(0, 0), R(0, 1), R(0, 2), R(1, 0), R(1, 1), R(1, 2), R(2, 0), R(2, 1), R(2, 2);
         Eigen::Quaternionf check_quaternion(check_rotation);
-        check_marker.pose.orientation.w = check_quaternion.w();
-        check_marker.pose.orientation.x = check_quaternion.x();
-        check_marker.pose.orientation.y = check_quaternion.y();
-        check_marker.pose.orientation.z = check_quaternion.z();
+        check_marker.pose.orientation.w = 1;//check_quaternion.w();
+        check_marker.pose.orientation.x = 0;//check_quaternion.x();
+        check_marker.pose.orientation.y = 1;//check_quaternion.y();
+        check_marker.pose.orientation.z = 0;//check_quaternion.z();
 
 
-        marker.scale.x = 0.1;
-        marker.scale.y = 0.05;
-        marker.scale.z = 0.05;
+        marker.scale.x = 0.02;
+        marker.scale.y = 0.02;
+        marker.scale.z = 0.02;
 
         marker.color.r = 1.0f;
         marker.color.g = 1.0f;
         marker.color.b = 0.0f;
         marker.color.a = 1.0;
 
+
+        //Pose message
+        geometry_msgs::PoseArray pose_array;
+        geometry_msgs::PoseStamped cam_pose, obj_pose, origin_pose;
+        cam_pose.pose.position = marker.pose.position;
+        cam_pose.pose.orientation = marker.pose.orientation;
+        obj_pose.pose.position = obj_marker.pose.position;
+        obj_pose.pose.orientation = obj_marker.pose.orientation;
+        origin_pose.pose.position = check_marker.pose.position;
+        origin_pose.pose.orientation = check_marker.pose.orientation;
+        cam_pose.header.frame_id =obj_pose.header.frame_id =origin_pose.header.frame_id = "/camera_rgb_optical_frame";
+        cam_pose.header.stamp = ros::Time::now();
+        obj_pose.header.stamp =origin_pose.header.stamp = ros::Time::now();
+        cam_pose_pub.publish(cam_pose);
+        obj_pose_pub.publish(obj_pose);
+        origin_pose_pub.publish(origin_pose);
+
+		if (!image.empty()) {
+			cv::imshow("Rendering", image);
+			//std::cout << "Rin:\n" << R_in << "\nT_in:\n" << T_in << std::endl;
+			//std::cout << "R:\n" << R << "\nT:\n" << T << std::endl;
+			cv::waitKey(50);
+		}
+
+		//the up vector
+		visualization_msgs::Marker up_marker;
+		up_marker.header.frame_id = "/camera_rgb_optical_frame";
+		up_marker.header.stamp = ros::Time::now();
+		up_marker.ns = "basic_shapes";
+		up_marker.action = visualization_msgs::Marker::MODIFY;
+		up_marker.id = 9;
+		up_marker.type = visualization_msgs::Marker::ARROW;
+		up_marker.scale.x = 0.01;
+		up_marker.scale.y = 0.02;
+		up_marker.scale.z = 0.01;
+        up_marker.color.r = 1.0f;
+        up_marker.color.g = 1.0f;
+        up_marker.color.b = 1.0f;
+        up_marker.color.a = 1.0;
+		geometry_msgs::Point up_start, up_end;
+		up_start.x = T(0);
+		up_start.y = T(1);
+		up_start.z = T(2);
+		up_end.x = up_start.x+R_obj(2, 0);
+		up_end.y = up_start.y+R_obj(2, 1);
+		up_end.z = up_start.z+R_obj(2, 2);
+		up_marker.points.push_back(up_start);
+		up_marker.points.push_back(up_end);
+
         marker.lifetime = ros::Duration();
         marker_array.markers[0] = obj_marker;
         marker_array.markers[1] = check_marker;
         marker_array.markers[2] = marker;
+        marker_array.markers[3] = up_marker;
+		marker_pub.publish(marker_array);
 
+    	visualization_msgs::Marker points;
+        points.header.frame_id = "/camera_rgb_optical_frame";
+        points.header.stamp = ros::Time::now();
+        points.ns = "basic_shapes";
+        points.action = visualization_msgs::Marker::ADD;
+        points.pose.orientation.w = 1.0;
+        points.id = 10;
 
-        marker_pub.publish(marker_array);
+        points.type = visualization_msgs::Marker::LINE_STRIP;
+        // POINTS markers use x and y scale for width/height respectively
+            points.scale.x = 0.01;
+            points.scale.y = 0.01;
+            points.scale.z = 0.01;
+            // Points are green
+            points.color.r = 1.0f;
+                points.color.b = 1.0f;
+                points.color.a = 0.4;
+
+                // Create the vertices for the points and lines
+            for (uint32_t i = 0; i < Ts.size(); ++i)
+            {
+
+              geometry_msgs::Point p;
+              p.x = Ts.at(i)(0);
+              p.y = Ts.at(i)(1);
+              p.z = Ts.at(i)(2);
+
+              points.points.push_back(p);
+            }
+
+        sphere_pub.publish(points);
 
         r.sleep();
-        ++renderer_iterator;
+
+        cout << "Press 'q' to quit: ";
+        int c;
+       	c = getchar ();
+       	if (c == 'q')
+       		break;
+
+        //++renderer_iterator;
 
      }//end of while
 }
