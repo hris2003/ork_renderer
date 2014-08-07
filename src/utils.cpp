@@ -94,7 +94,7 @@ cv::Matx33d RendererIterator::R() const {
 	normalize_vector(right(0),right(1),right(2));
 	normalize_vector(up(0),up(1),up(2));
 
-	cv::Mat R_full = (cv::Mat_<double>(3, 3) << t_normal(0), t_normal(1), t_normal(2),right(0), right(1), right(2), up(0), up(1), up(2));
+	cv::Mat R_full = (cv::Mat_<double>(3, 3) << t_normal(0), t_normal(1), t_normal(2),up(0), up(1), up(2), right(0), right(1), right(2));
 	cv::Matx33d R = R_full;
 
 	return R;
