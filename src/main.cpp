@@ -65,6 +65,20 @@
 
 using namespace std;
 
+/** Function that normalizes a vector
+ * @param x the x component of the vector
+ * @param y the y component of the vector
+ * @param z the z component of the vector
+ */
+/*template<typename T>
+void normalize_vector(T & x, T&y, T&z)
+{
+  T norm = std::sqrt(x * x + y * y + z * z);
+  x /= norm;
+  y /= norm;
+  z /= norm;
+}
+*/
 void render3d(std::string file_name, size_t width, size_t height) {
 #if USE_RENDERER_GLUT
 	RendererGlut renderer = RendererGlut(file_name);
@@ -93,6 +107,22 @@ void render3d(std::string file_name, size_t width, size_t height) {
 
 		}
 	}
+}
+
+void transformV1toV2(cv::Vec3f v1, cv::Vec3f v2, cv::Mat& r_out){
+	cv::Vec3f v3 = v1.cross(v2);
+	normalize_vector(v3(0), v3(1), v3(2));
+	cv::Vec3f v4 = v3.cross(v1);
+
+	cv::Mat M1 = (cv::Mat_<double>(3, 3) << v1(0), v1(1), v1(2),v4(0), v4(1), v4(2), v3(0), v3(1), v3(2));
+	float m_cos = v2.dot(v1);
+	float m_sin = v2.dot(v4);
+	cv::Mat M2 = (cv::Mat_<double>(3, 3) << m_cos, m_sin, 0,-m_sin, m_cos, 0, 0, 0, 1);
+
+	cv::Mat R = M1.t() * M2 * M1;
+
+	r_out = R.clone();
+
 }
 void render3d_2Ros(std::string file_name, size_t width, size_t height,
 		double r_in, int angle_in, int step_in, bool isLoop) {
@@ -229,17 +259,29 @@ void render3d_2Ros(std::string file_name, size_t width, size_t height,
 //std::cout << "R:\n" << R << "\nT:\n\n" << T << std::endl;
 
 		R_cam = cv::Mat(R.t()).clone();
+
+
 		R_obj = cv::Mat(R).clone();
 
 
 		t_obj_up = cv::Vec3f(R(0, 0), R(0, 1), R(0, 2));
+		cv::Vec3f T_up = cv::Vec3f(R(2, 0), R(2, 1), R(2, 2));
+		cout<<"t_up: :\t"<<T_up<<"\n";
+		/*
 		float x_angle = acos(cv::Vec3f(R(0, 0), R(0, 1), R(0, 2)).dot( cv::Vec3f(1,0,0)));
 		float y_angle = acos(cv::Vec3f(R(1, 0), R(1, 1), R(1, 2)).dot( cv::Vec3f(0,1,0)));
 		float z_angle = acos(cv::Vec3f(R(2, 0), R(2, 1), R(2, 2)).dot( cv::Vec3f(0,0,1)));
-		cout << "obj_up :\t"<<t_obj_up<<"\n"<<x_angle * 180 / 3.14<<"\t"<<y_angle * 180 / 3.14<<"\t"<<z_angle * 180 / 3.14<<"\n";
 
-		cv::Vec3f T_up = cv::Vec3f(R(2, 0), R(2, 1), R(2, 2));
-		cout<<"t_up: :\t"<<T_up<<"\n";
+
+		cout << "obj_up :\t"<<t_obj_up<<"\n"<<x_angle * 180 / 3.14<<"\t"<<y_angle * 180 / 3.14<<"\t"<<z_angle * 180 / 3.14<<"\n";
+	*/
+		cv::Mat cam2obj=(cv::Mat_<float>(3, 3) << 0, 0, -1, 1, 0, 0, 0, 1, 0);
+		transformV1toV2(-T_up, cv::Vec3f(0,0,1), cam2obj);
+		cout<<"cam2obj: :\t"<<cam2obj<<"\n";
+		R_obj = cam2obj.clone();
+		//t_obj_up =  cv::Vec3f(cam2obj*t_obj_up);
+
+
 //R_cam = R_cam.t();
 
 		visualization_msgs::MarkerArray marker_array;
@@ -360,9 +402,11 @@ void render3d_2Ros(std::string file_name, size_t width, size_t height,
 		up_obj_start.x = 0;
 		up_obj_start.y = 0;
 		up_obj_start.z = 0;
-		up_obj_end.x = up_obj_start.x + t_obj_up(0);
-		up_obj_end.y = up_obj_start.y + t_obj_up(1);
-		up_obj_end.z = up_obj_start.z + t_obj_up(2);
+		cv::Vec3f new_t_up = -T_up + cv::Vec3f(0,0,1);
+		cout<<"new t_up: "<<new_t_up<<"\n";
+		up_obj_end.x = up_obj_start.x + new_t_up(0);//t_obj_up(0);
+		up_obj_end.y = up_obj_start.y + new_t_up(1);//t_obj_up(1);
+		up_obj_end.z = up_obj_start.z + new_t_up(2);//t_obj_up(2);
 		up_obj_marker.points.push_back(up_obj_start);
 		up_obj_marker.points.push_back(up_obj_end);
 
