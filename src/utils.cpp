@@ -37,8 +37,6 @@
 #include <object_recognition_renderer/renderer.h>
 #include <object_recognition_renderer/utils.h>
 
-#include <iostream>//todo to be deleted after debug
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 RendererIterator::RendererIterator(Renderer *renderer, size_t n_points) :

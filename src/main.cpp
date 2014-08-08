@@ -79,6 +79,22 @@ void normalize_vector(T & x, T&y, T&z)
   z /= norm;
 }
 */
+/**
+ * alpha, beta and theta are supposed to be in radian.
+ */
+void calculateRotationMatrix(float alpha, float beta, float theta,
+		cv::Matx33f& R) {
+	//convert degree to radian
+	R(0, 0) = cos(theta) * cos(beta);
+	R(0, 1) = -sin(theta) * cos(alpha) + cos(theta) * sin(beta) * sin(alpha);
+	R(0, 2) = sin(theta) * sin(alpha) + cos(theta) * sin(beta) * cos(alpha);
+	R(1, 0) = sin(theta) * cos(beta);
+	R(1, 1) = cos(theta) * cos(alpha) + sin(theta) * sin(beta) * sin(alpha);
+	R(1, 2) = -cos(theta) * sin(alpha) + sin(theta) * sin(beta) * cos(alpha);
+	R(2, 0) = -sin(beta);
+	R(2, 1) = cos(beta) * sin(alpha);
+	R(2, 2) = cos(beta) * cos(alpha);
+}
 void render3d(std::string file_name, size_t width, size_t height) {
 #if USE_RENDERER_GLUT
 	RendererGlut renderer = RendererGlut(file_name);
@@ -259,26 +275,25 @@ void render3d_2Ros(std::string file_name, size_t width, size_t height,
 //std::cout << "R:\n" << R << "\nT:\n\n" << T << std::endl;
 
 		R_cam = cv::Mat(R.t()).clone();
-
-
-		R_obj = cv::Mat(R).clone();
+		R_obj = cv::Mat(R.t()).clone();
 
 
 		t_obj_up = cv::Vec3f(R(0, 0), R(0, 1), R(0, 2));
 		cv::Vec3f T_up = cv::Vec3f(R(2, 0), R(2, 1), R(2, 2));
 		cout<<"t_up: :\t"<<T_up<<"\n";
-		/*
-		float x_angle = acos(cv::Vec3f(R(0, 0), R(0, 1), R(0, 2)).dot( cv::Vec3f(1,0,0)));
-		float y_angle = acos(cv::Vec3f(R(1, 0), R(1, 1), R(1, 2)).dot( cv::Vec3f(0,1,0)));
-		float z_angle = acos(cv::Vec3f(R(2, 0), R(2, 1), R(2, 2)).dot( cv::Vec3f(0,0,1)));
+
+		float y_angle/*beta*/ = asin(-R_cam(2,0));
+		float x_angle/*alpha*/ = acos(R_cam(2, 2)/cos(y_angle));
+		float z_angle/*theta*/ = acos(R_cam(0, 0)/cos(y_angle));
 
 
-		cout << "obj_up :\t"<<t_obj_up<<"\n"<<x_angle * 180 / 3.14<<"\t"<<y_angle * 180 / 3.14<<"\t"<<z_angle * 180 / 3.14<<"\n";
-	*/
+
+		cout << x_angle * 180 / 3.14<<"\t"<<y_angle * 180 / 3.14<<"\t"<<z_angle * 180 / 3.14<<"\n";
+		calculateRotationMatrix(-x_angle, -y_angle, -z_angle, R_obj);
 		cv::Mat cam2obj=(cv::Mat_<float>(3, 3) << 0, 0, -1, 1, 0, 0, 0, 1, 0);
-		transformV1toV2(-T_up, cv::Vec3f(0,0,1), cam2obj);
-		cout<<"cam2obj: :\t"<<cam2obj<<"\n";
-		R_obj = cam2obj.clone();
+		//transformV1toV2(-T_up, cv::Vec3f(0,0,1), cam2obj);
+		//cout<<"cam2obj: :\t"<<cam2obj<<"\n";
+		//R_obj = cam2obj.clone();
 		//t_obj_up =  cv::Vec3f(cam2obj*t_obj_up);
 
 
