@@ -65,20 +65,6 @@
 
 using namespace std;
 
-/** Function that normalizes a vector
- * @param x the x component of the vector
- * @param y the y component of the vector
- * @param z the z component of the vector
- */
-/*template<typename T>
-void normalize_vector(T & x, T&y, T&z)
-{
-  T norm = std::sqrt(x * x + y * y + z * z);
-  x /= norm;
-  y /= norm;
-  z /= norm;
-}
-*/
 /**
  * alpha, beta and theta are supposed to be in radian.
  */
@@ -177,7 +163,7 @@ void render3d_2Ros(std::string file_name, size_t width, size_t height,
 	cv::Vec3f T;
 
 	//Marker for the object in the center of the world
-	visualization_msgs::Marker obj_marker, check_marker;
+	visualization_msgs::Marker obj_marker;
 	int id = 0;
 
 	// Set the frame ID and timestamp.  See the TF tutorials for information on these.
@@ -190,7 +176,6 @@ void render3d_2Ros(std::string file_name, size_t width, size_t height,
 	id++;
 	obj_marker.type = shape;
 	obj_marker.action = visualization_msgs::Marker::ADD;
-	cv::Vec3f t_obj_up(1,0,0);
 	Eigen::Matrix3f origin_rotation;
 	origin_rotation << 1, 0, 0, 0, 1, 0, 0, 0, 1;
 	Eigen::Quaternionf origin_quaternion(origin_rotation);
@@ -215,14 +200,6 @@ void render3d_2Ros(std::string file_name, size_t width, size_t height,
 
 	obj_marker.lifetime = ros::Duration();
 
-	check_marker = obj_marker;
-	check_marker.id = id;
-	id++;
-	check_marker.color.r = 0.0f;
-	check_marker.color.g = 1.0f;
-	check_marker.color.b = 0.0f;
-	check_marker.color.a = 1.0f;
-
 	renderer_iterator.angle_ = angle_in;
 	renderer_iterator.radius_ = r_in;
 	vector<cv::Vec3f> Ts;
@@ -235,9 +212,6 @@ void render3d_2Ros(std::string file_name, size_t width, size_t height,
 	string mystr;
 	bool angle_looping = false;
 	int min_angle = -80, max_angle = 80, step_angle = 5;
-	//Matx to switch between X and Z
-	//	cv::Mat R_xz =
-	//	(cv::Mat_<float>(3, 3) << 0, 0, -1, 1, 0, 0, 0, 1, 0);
 	while (ros::ok()) {
 		if (angle_looping && (angle_in < max_angle)) {
 			angle_in += step_angle;
@@ -272,35 +246,16 @@ void render3d_2Ros(std::string file_name, size_t width, size_t height,
 		cv::Mat T_in = cv::Mat(renderer_iterator.T());
 		T_in.convertTo(T, CV_32F);
 		R_in.convertTo(R, CV_32F);
-//std::cout << "R:\n" << R << "\nT:\n\n" << T << std::endl;
 
 		R_cam = cv::Mat(R.t()).clone();
 		R_obj = cv::Mat(R.t()).clone();
 
 
-		t_obj_up = cv::Vec3f(R(0, 0), R(0, 1), R(0, 2));
 		cv::Vec3f T_up = cv::Vec3f(R(2, 0), R(2, 1), R(2, 2));
 		cout<<"t_up: :\t"<<T_up<<"\n";
 
-		float y_angle/*beta*/ = asin(-R_cam(2,0));
-		float x_angle/*alpha*/ = acos(R_cam(2, 2)/cos(y_angle));
-		float z_angle/*theta*/ = acos(R_cam(0, 0)/cos(y_angle));
-
-
-
-		cout << x_angle * 180 / 3.14<<"\t"<<y_angle * 180 / 3.14<<"\t"<<z_angle * 180 / 3.14<<"\n";
-		calculateRotationMatrix(-x_angle, -y_angle, -z_angle, R_obj);
-		cv::Mat cam2obj=(cv::Mat_<float>(3, 3) << 0, 0, -1, 1, 0, 0, 0, 1, 0);
-		//transformV1toV2(-T_up, cv::Vec3f(0,0,1), cam2obj);
-		//cout<<"cam2obj: :\t"<<cam2obj<<"\n";
-		//R_obj = cam2obj.clone();
-		//t_obj_up =  cv::Vec3f(cam2obj*t_obj_up);
-
-
-//R_cam = R_cam.t();
-
 		visualization_msgs::MarkerArray marker_array;
-		marker_array.markers.resize(5);
+		marker_array.markers.resize(4);
 		visualization_msgs::Marker marker;
 // Set the frame ID and timestamp.  See the TF tutorials for information on these.
 		marker.header.frame_id = "/camera_rgb_optical_frame";
@@ -316,10 +271,6 @@ void render3d_2Ros(std::string file_name, size_t width, size_t height,
 		marker.pose.position.x = T(0);
 		marker.pose.position.y = T(1);
 		marker.pose.position.z = T(2);
-
-		check_marker.pose.position.x = 0;
-		check_marker.pose.position.y = 0;
-		check_marker.pose.position.z = 0;
 
 		obj_marker.pose.position.x = 0;
 		obj_marker.pose.position.y = 0;
@@ -342,16 +293,6 @@ void render3d_2Ros(std::string file_name, size_t width, size_t height,
 		marker.pose.orientation.y = cam_quaternion.y();
 		marker.pose.orientation.z = cam_quaternion.z();
 
-		R = R_cam * R_obj;
-		Eigen::Matrix3f check_rotation;
-		check_rotation << R(0, 0), R(0, 1), R(0, 2), R(1, 0), R(1, 1), R(1, 2), R(
-				2, 0), R(2, 1), R(2, 2);
-		Eigen::Quaternionf check_quaternion(check_rotation);
-		check_marker.pose.orientation.w = 1; //check_quaternion.w();
-		check_marker.pose.orientation.x = 0; //check_quaternion.x();
-		check_marker.pose.orientation.y = 1; //check_quaternion.y();
-		check_marker.pose.orientation.z = 0; //check_quaternion.z();
-
 		marker.scale.x = 0.02;
 		marker.scale.y = 0.02;
 		marker.scale.z = 0.02;
@@ -368,8 +309,6 @@ void render3d_2Ros(std::string file_name, size_t width, size_t height,
 		cam_pose.pose.orientation = marker.pose.orientation;
 		obj_pose.pose.position = obj_marker.pose.position;
 		obj_pose.pose.orientation = obj_marker.pose.orientation;
-		origin_pose.pose.position = check_marker.pose.position;
-		origin_pose.pose.orientation = check_marker.pose.orientation;
 		cam_pose.header.frame_id = obj_pose.header.frame_id =
 				origin_pose.header.frame_id = "/camera_rgb_optical_frame";
 		cam_pose.header.stamp = ros::Time::now();
@@ -380,13 +319,11 @@ void render3d_2Ros(std::string file_name, size_t width, size_t height,
 
 		if (!image.empty()) {
 			cv::imshow("Rendering", image);
-			//std::cout << "Rin:\n" << R_in << "\nT_in:\n" << T_in << std::endl;
-			//std::cout << "R:\n" << R << "\nT:\n" << T << std::endl;
 			cv::waitKey(50);
 		}
 
 //the up vector
-		visualization_msgs::Marker up_cam_marker, up_obj_marker;
+		visualization_msgs::Marker up_cam_marker;
 		up_cam_marker.header.frame_id = "/camera_rgb_optical_frame";
 		up_cam_marker.header.stamp = ros::Time::now();
 		up_cam_marker.ns = "basic_shapes";
@@ -400,8 +337,6 @@ void render3d_2Ros(std::string file_name, size_t width, size_t height,
 		up_cam_marker.color.g = 1.0f;
 		up_cam_marker.color.b = 1.0f;
 		up_cam_marker.color.a = 1.0;
-		up_obj_marker = up_cam_marker;
-		up_obj_marker.id = 9;
 
 		geometry_msgs::Point up_cam_start, up_cam_end;
 		up_cam_start.x = T(0);
@@ -413,24 +348,11 @@ void render3d_2Ros(std::string file_name, size_t width, size_t height,
 		up_cam_marker.points.push_back(up_cam_start);
 		up_cam_marker.points.push_back(up_cam_end);
 
-		geometry_msgs::Point up_obj_start, up_obj_end;
-		up_obj_start.x = 0;
-		up_obj_start.y = 0;
-		up_obj_start.z = 0;
-		cv::Vec3f new_t_up = -T_up + cv::Vec3f(0,0,1);
-		cout<<"new t_up: "<<new_t_up<<"\n";
-		up_obj_end.x = up_obj_start.x + new_t_up(0);//t_obj_up(0);
-		up_obj_end.y = up_obj_start.y + new_t_up(1);//t_obj_up(1);
-		up_obj_end.z = up_obj_start.z + new_t_up(2);//t_obj_up(2);
-		up_obj_marker.points.push_back(up_obj_start);
-		up_obj_marker.points.push_back(up_obj_end);
 
 		marker.lifetime = ros::Duration();
-		marker_array.markers[0] = obj_marker;
-		marker_array.markers[1] = check_marker;
-		marker_array.markers[2] = marker;
-		marker_array.markers[3] = up_cam_marker;
-		marker_array.markers[4] = up_obj_marker;
+		marker_array.markers[0] = obj_marker;//object
+		marker_array.markers[1] = marker;
+		marker_array.markers[2] = up_cam_marker;
 		marker_pub.publish(marker_array);
 
 		visualization_msgs::Marker points;
@@ -498,46 +420,22 @@ void render3d_withFixeParams(std::string file_name, size_t width, size_t height,
 	cv::Mat image, depth, mask;
 	cv::Matx33d R, R_in, r;
 	cv::Vec3d T, T_in;
-//Matx to switch between Y and Z
-	cv::Mat R_yz = (cv::Mat_<double>(3, 3) << 1, 0, 0, 0, 0, -1, 0, 1, 0);
-//Setup the view_params for RendererIterator, including angle_, radius_, index_
 
+//Setup the view_params for RendererIterator, including angle_, radius_, index_
 	renderer_iterator.angle_ = angle_in;
 	renderer_iterator.radius_ = r_in;
 	renderer_iterator.index_ = step_in;
-	/*
-	 renderer_iterator.render(image, depth, mask);
-	 R_in = renderer_iterator.R();
-	 T_in = renderer_iterator.T();
-	 std::cout << "Rendering params:\nRadius:\t" << renderer_iterator.radius_
-	 << "\nAngle:\t" << renderer_iterator.angle_ << "\nIndex:\t"
-	 << renderer_iterator.index_ << std::endl;
-	 */
-// Display the rendered image
-//cv::namedWindow("Rendering");
-//R_in = R_in.t() * cv::Matx33d(R_yz);
+
 	if (isLoop) {
-//for (int my_angle = -90; my_angle < 90; my_angle += 10)
 		for (int my_index = 0; my_index < 50; my_index++) {
-			//
-			//for (double my_r = 0.4; my_r < 1.0; my_r+=0.05) {
 			try {
 				renderer_iterator.index_ = my_index;
-				//renderer_iterator.angle_ = my_angle;
-				//renderer_iterator.radius_ = my_r;
 				renderer_iterator.render(image, depth, mask);
 				R = renderer_iterator.R();
 				T = renderer_iterator.T();
-				//R = R.t() * cv::Matx33d(R_yz);
-				//compare the R with R_in and show it if possible
-				// Display the rendered image
-				//cv::namedWindow("Rendering");
-				//std::cout<<"i: "<<i<<std::endl;
 
 				if (!image.empty()) {
 					cv::imshow("Rendering", image);
-					//std::cout << "Rin:\n" << R_in << "\nT_in:\n" << T_in << std::endl;
-					std::cout << "R:\n" << R << "\nT:\n" << T << std::endl;
 					cv::waitKey(500);
 				}
 
@@ -549,8 +447,6 @@ void render3d_withFixeParams(std::string file_name, size_t width, size_t height,
 		cv::waitKey(0);
 	} else {
 		try {
-			//renderer_iterator.angle_ = my_angle;
-			//renderer_iterator.radius_ = my_r;
 			renderer_iterator.render(image, depth, mask);
 
 			R = renderer_iterator.R();
@@ -562,7 +458,6 @@ void render3d_withFixeParams(std::string file_name, size_t width, size_t height,
 
 			// Display the rendered image
 			cv::namedWindow("Rendering");
-			//R = R.t() * cv::Matx33d(R_yz);
 			if (!image.empty()) {
 				cv::imshow("Rendering", image);
 				std::cout << "R:\n" << R << "\nT:\n" << T << std::endl;
@@ -598,15 +493,13 @@ int main(int argc, char **argv) {
 	size_t width = 640, height = 480;
 
 // the model name can be specified on the command line.
-//std::string file_name(argv[1]), file_ext = file_name.substr(file_name.size() - 3, file_name.npos);
-//filename of the coke mesh: /home/hdang/ork/src/ork_tutorials/data/coke.stl
 	std::string file_name("/home/hdang/ork/src/ork_tutorials/data/coke.stl"),
 			file_ext = "stl";
 	double r = atof(argv[1]);  //input radius
 	int angle = atoi(argv[2]);  //input angle
 	int index = atoi(argv[3]);  //input index
 	int isLoop = atoi(argv[4]);  //input index
-	if (file_ext == "png")
+	if ((isLoop == 0)&&(file_ext == "png"))
 		render2d(file_name, width, height);
 	else if (isLoop == 1)
 		render3d_withFixeParams(file_name, width, height, r, angle, index,
